@@ -1,4 +1,3 @@
-use rfd::FileDialog;
 use routes::music::save_music::load_folder_music;
 use std::path::Path;
 use std::{fs, io::Write};
@@ -18,7 +17,7 @@ use dotenv::dotenv;
 
 //USAGE:
 //		cargo run -> start the server
-//		cargo run load -> load musci and start the server
+//		cargo run load <path>-> load musci and start the server
 
 #[tokio::main]
 async fn main() {
@@ -35,8 +34,9 @@ async fn main() {
 		.layer(core::server::configure_cors());
 
 	let args: Vec<String> = std::env::args().collect();
-	if args.len() > 1 && args[1] == "load" {
-		load_music(app_state);
+	if args.len() >= 3 && args[1] == "load" {
+		let path = &args[2];
+		load_music_from_path(app_state.clone(), path);
 	}
 
 	tracing_subscriber::fmt().pretty().init();
@@ -74,20 +74,14 @@ fn write_ip_to_frontend(ip: &str, port: &str) -> std::io::Result<()> {
 	Ok(())
 }
 
-fn load_music(app_state: AppState) {
-	println!("Loading music files...");
-	// Open a folder selection dialog box
-	//might not be cross platform
-	let folder = FileDialog::new()
-		.set_title("Select a folder containing music files")
-		.pick_folder();
+fn load_music_from_path(app_state: AppState, path: &str) {
+	let path = Path::new(path);
 
-	// Check if the user selected a folder
-	if let Some(folder_path) = folder {
-		let folder_path = folder_path.display().to_string();
-		println!("Selected folder: {folder_path}");
-		load_folder_music(app_state, folder_path);
-	} else {
-		println!("No folder selected.");
+	if !path.exists() || !path.is_dir() {
+		eprintln!("Invalid music directory: {}", path.display());
+		return;
 	}
+
+	println!("Loading music from: {}", path.display());
+	load_folder_music(app_state, path.display().to_string());
 }
